@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/peterhellberg/karta"
+	"github.com/radean0909/karta"
 )
 
 var (

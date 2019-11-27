@@ -5,8 +5,8 @@ import (
 	"math/rand"
 
 	"github.com/llgcode/draw2d/draw2dimg"
-	"github.com/peterhellberg/karta/diagram"
-	"github.com/peterhellberg/karta/palette"
+	"github.com/radean0909/karta/diagram"
+	"github.com/radean0909/karta/palette"
 )
 
 // Generate generates a map
@@ -25,101 +25,75 @@ func (k *Karta) generateTopography() {
 		n := k.Noise.Noise2D(
 			cell.Site.X/(float64(k.Width)/4),
 			cell.Site.Y/(float64(k.Height)/4))
+		p := (k.Noise.Noise2D(
+			-1*cell.Site.X/(float64(k.Width)/4),
+			-1*cell.Site.Y/(float64(k.Height)/4)) + 1.0) / 2.0
 
 		e := elevation(k, d, n)
 		c := &Cell{
 			Index:          i,
 			CenterDistance: d,
 			NoiseLevel:     n,
+			Precipitation:  p,
 			Elevation:      e,
 			Land:           e >= 0,
 			Site:           cell.Site,
 		}
 
 		if c.Land {
-			// Make sure edges of the map are water
+			// make sure edges of the map are water
 			if (cell.Site.X < u*0.5 || cell.Site.X > float64(k.Width)-u*0.5) ||
 				(cell.Site.Y < u/1.5 || cell.Site.Y > float64(k.Height)-u/1.5) ||
 				(cell.Site.Y < u/3 || cell.Site.Y > float64(k.Height)-u/3) {
 				c.Land = false
 				c.Elevation = -1.5 * c.NoiseLevel
+			} else {
+				c.adjustElevation(u)
 			}
 		}
 
-		if c.Land {
-			if d < u*3.3 {
-				c.Elevation += 0.3
-			}
+		c.Biome = c.calculateBiome()
 
-			if d < u*2.3 {
-				c.Elevation += 0.6
-			}
-
-			if d < u*1.3 {
-				c.Elevation += 0.9
-			}
-
-			// Add some lakes
-			if c.NoiseLevel < -0.3 {
-				c.Elevation = c.NoiseLevel
-			}
-
-			switch {
-			case c.Elevation > 7:
-				c.FillColor = palette.Green7
-				c.StrokeColor = palette.Green8
-			case c.Elevation > 6.1:
-				c.FillColor = palette.Green6
-				c.StrokeColor = palette.Green7
-			case c.Elevation > 4.8:
-				c.FillColor = palette.Green5
-				c.StrokeColor = palette.Green6
-			case c.Elevation > 3.1:
-				c.FillColor = palette.Green4
-				c.StrokeColor = palette.Green5
-			case c.Elevation > 2.4:
-				c.FillColor = palette.Green3
-				c.StrokeColor = palette.Green4
-			case c.Elevation > 1.5:
-				c.FillColor = palette.Green2
-				c.StrokeColor = palette.Green3
-			case c.Elevation < -0.6:
-				c.FillColor = palette.Blue1
-				c.StrokeColor = palette.Blue2
-			case c.Elevation < -0.4:
-				c.FillColor = palette.Blue0
-				c.StrokeColor = palette.Blue1
-			case c.Elevation < 0:
-				c.FillColor = palette.Yellow1
-				c.StrokeColor = palette.Yellow2
-			default:
-				c.FillColor = palette.Green1
-				c.StrokeColor = palette.Green2
-			}
-		} else {
-			switch {
-			case c.Elevation < -6:
-				c.FillColor = palette.Blue7
-				c.StrokeColor = palette.Blue7
-			case c.Elevation < -5:
-				c.FillColor = palette.Blue6
-				c.StrokeColor = palette.Blue7
-			case c.Elevation < -4:
-				c.FillColor = palette.Blue5
-				c.StrokeColor = palette.Blue6
-			case c.Elevation < -3:
-				c.FillColor = palette.Blue4
-				c.StrokeColor = palette.Blue5
-			case c.Elevation < -2:
-				c.FillColor = palette.Blue3
-				c.StrokeColor = palette.Blue4
-			case c.Elevation < -1:
-				c.FillColor = palette.Blue2
-				c.StrokeColor = palette.Blue3
-			default:
-				c.FillColor = palette.Blue1
-				c.StrokeColor = palette.Blue2
-			}
+		switch c.Biome {
+		case DeepOcean:
+			c.FillColor = palette.Blue5
+			c.StrokeColor = palette.Blue6
+		case ShallowOcean:
+			c.FillColor = palette.Blue4
+			c.StrokeColor = palette.Blue5
+		case CoastalOcean:
+			c.FillColor = palette.Blue3
+			c.StrokeColor = palette.Blue4
+		case SaltwaterLake:
+			c.FillColor = palette.Blue1
+			c.StrokeColor = palette.Blue2
+		case FreshwaterLake:
+			c.FillColor = palette.Blue0
+			c.StrokeColor = palette.Blue1
+		case Beach, SubtropicalDesert, TemperateDesert:
+			c.FillColor = palette.Yellow1
+			c.StrokeColor = palette.Yellow2
+		case Snow, Tundra, BareTundra:
+			c.FillColor = palette.White
+			c.StrokeColor = palette.TundraWhite
+		case Tiaga, Shrubland:
+			c.FillColor = palette.Green3
+			c.StrokeColor = palette.Green4
+		case Grassland:
+			c.FillColor = palette.Green2
+			c.StrokeColor = palette.Green3
+		case DeciduousForest:
+			c.FillColor = palette.Green4
+			c.StrokeColor = palette.Green5
+		case TemperateRainforest:
+			c.FillColor = palette.Green5
+			c.StrokeColor = palette.Green6
+		case TropicalSeasonalForest:
+			c.FillColor = palette.Green6
+			c.StrokeColor = palette.Green7
+		case TropicalRainforest:
+			c.FillColor = palette.Green7
+			c.StrokeColor = palette.Green8
 		}
 
 		k.Cells = append(k.Cells, c)
